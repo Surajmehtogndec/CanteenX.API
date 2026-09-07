@@ -14,13 +14,16 @@ namespace CanteenX.API.Services.Auth
     public class AuthService : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
             IConfiguration configuration)
         {
             _userManager = userManager;
+            _emailService = emailService;
             _configuration = configuration;
         }
 
@@ -820,5 +823,90 @@ namespace CanteenX.API.Services.Auth
                 }
             };
         }
+
+
+        // password reset and forgot password methods would go here, but they are not included in the provided code snippet.
+
+
+        public async Task<bool> ForgotPasswordAsync(string email)
+        {
+           var user  = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                return false;
+            }
+
+            // Generate a password reset token
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            // Encode Token For url
+            var encodedToken = Uri.EscapeDataString(token);
+           // get mvc application URl
+
+            var frontendUrl = _configuration["AppSettings:FrontendUrl"] ;
+            if(string.IsNullOrWhiteSpace(frontendUrl))
+            {
+                throw new InvalidOperationException("Frontend URL is missing from configuration.");
+            }
+
+            // Create password reset link
+            var resetLink =
+                $"{frontendUrl}/Account/ResetPassword" +
+                $"?email={Uri.EscapeDataString(user.Email!)}" +
+                $"&token={encodedToken}";
+
+            // Send reset email
+            await _emailService.SendPasswordResetEmailAsync(
+                user.Email!,
+                resetLink
+            );
+
+            return true;
+        }
+
+
+        // reset password method
+
+        public async  Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            var user = await _userManager.FindByEmailAsync(dto.Email);
+            if (user == null)
+            {
+                return false;
+            }
+            // Decode the token
+            var decodedToken = Uri.UnescapeDataString(dto.Token);
+
+            // Reset the password
+            var result = await _userManager.ResetPasswordAsync(user, decodedToken, dto.NewPassword);
+
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+            return result.Succeeded;
+        }
+
+
+        // token lifetime configuration is already handled in Program.cs, so no need to implement it here.
+        public async Task<bool> ValidateResetTokenAsync(string email, string token)
+        {
+            var user =
+        await _userManager.FindByEmailAsync(email);
+            if(user== null)
+            {
+                return false;
+            }
+
+            var result =
+        await _userManager.VerifyUserTokenAsync(
+            user,
+            _userManager.Options.Tokens.PasswordResetTokenProvider,
+            "ResetPassword",
+            token);
+
+
+            return result;
+        }
+
     }
 }

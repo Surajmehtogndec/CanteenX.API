@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using CanteenX.API.Services.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using CanteenX.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +50,12 @@ builder.Services
     .AddEntityFrameworkStores<CanteenxdbContext>()
     .AddDefaultTokenProviders();
 
+// token life time configuration
 
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+{
+    options.TokenLifespan = TimeSpan.FromMinutes(5);
+});
 
 
 // =====================================================
@@ -120,6 +126,8 @@ builder.Services
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
+
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // =====================================================
