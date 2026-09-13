@@ -28,6 +28,158 @@ namespace CanteenX.API.Services.Auth
         }
 
 
+
+        // canteen admin register accesss
+
+        public async Task<AuthResponseDto> RegisterAdminAsync(
+            RegisterDto dto)
+        {
+            // ---------------------------------------------
+            // Check Email
+            // ---------------------------------------------
+            var email = dto.Email.Trim().ToLower();
+
+            var existingEmailUser =
+                await _userManager.FindByEmailAsync(email);
+            if (existingEmailUser != null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "An account with this email already exists."
+                };
+            }
+            // ---------------------------------------------
+            // Check Phone Number
+            // ---------------------------------------------
+
+
+            var phonenumber = dto.PhoneNumber.Trim();
+            var existingPhoneUser =
+                _userManager.Users
+                .FirstOrDefault(u => u.PhoneNumber == phonenumber);
+
+
+            if(existingPhoneUser != null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "An account with this phone number already exists."
+                };
+            }
+
+            // ---------------------------------------------
+            // Create ApplicationUser
+            // ---------------------------------------------
+
+            var user = new ApplicationUser
+            {
+                FullName = dto.FullName.Trim(),
+
+                Email = email,
+
+                UserName = email,
+
+                PhoneNumber = phonenumber,
+
+                IsActive = true,
+
+                CreatedAt = DateTime.UtcNow
+            };
+
+
+            // ---------------------------------------------
+            // Create User
+            // Identity automatically hashes password
+            // ---------------------------------------------
+
+            var result =
+                await _userManager.CreateAsync(
+                    user,
+                    dto.Password);
+
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(
+                    ", ",
+                    result.Errors.Select(e => e.Description));
+
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = errors
+                };
+            }
+
+
+            // admin registration = canteen admin
+
+            var roleResult =
+                           await _userManager.AddToRoleAsync(
+                               user,
+                               "CanteenStaff");
+
+
+            if (!roleResult.Succeeded)
+            {
+                // If role assignment fails,
+                // remove the newly created user.
+
+                await _userManager.DeleteAsync(user);
+
+                var errors = string.Join(
+                    ", ",
+                    roleResult.Errors.Select(e => e.Description));
+
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message =
+                        $"Unable to assign canteen staff role. {errors}"
+                };
+            }
+
+
+            // ---------------------------------------------
+            // Generate JWT
+            // ---------------------------------------------
+
+            var token =
+                await GenerateJwtTokenAsync(user);
+
+
+            // ---------------------------------------------
+            // Response
+            // ---------------------------------------------
+
+            return new AuthResponseDto
+            {
+                Success = true,
+
+                Message = "Registration successful.",
+
+                AccessToken = token,
+
+                User = new UserInfoDto
+                {
+                    Id = user.Id,
+
+                    FullName = user.FullName,
+
+                    Email = user.Email ?? string.Empty,
+
+                    PhoneNumber = user.PhoneNumber,
+
+                    Role = "CanteenStaff"
+                }
+            };
+
+
+        }
+
+
         // =====================================================
         // REGISTER STUDENT
         // =====================================================

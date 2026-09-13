@@ -8,6 +8,8 @@ namespace CanteenX.API.Services.Auth
         Task<bool> ResetPasswordAsync(ResetPasswordDto dto);
         Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
 
+        Task<AuthResponseDto> RegisterAdminAsync(RegisterDto dto);
+
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
         Task<AuthResponseDto?> GoogleLoginAsync(string idToken);
 

@@ -43,17 +43,36 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(e => e.CanteenId).HasColumnType("int(11)");
             entity.Property(e => e.CanteenName).HasMaxLength(150);
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
+
             entity.Property(e => e.Description).HasMaxLength(500);
+
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
+
             entity.Property(e => e.IsActive).HasDefaultValueSql("'1'");
+
             entity.Property(e => e.Location).HasMaxLength(250);
+
             entity.Property(e => e.UpdatedAt)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
+
+            // user canteen relationship
+            entity.HasOne(e => e.User)
+            .WithOne(e => e.Canteen)
+            .HasForeignKey<Canteen>(e => e.UserId)
+            .HasConstraintName("FK_Canteens_AspNetUsers_UserId")
+            .OnDelete(DeleteBehavior.Restrict);
+
+
+            // one Identity User = one Canteen
+
+            entity.HasIndex(e => e.UserId)
+            .IsUnique();
         });
 
         modelBuilder.Entity<Menucategory>(entity =>
