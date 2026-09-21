@@ -8,6 +8,7 @@ using CanteenX.API.Services.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using CanteenX.API.Services;
+using CanteenX.API.Services.AdminServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -126,7 +127,7 @@ builder.Services
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
-
+builder.Services.AddScoped<IAdminServices, AdminServices>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
