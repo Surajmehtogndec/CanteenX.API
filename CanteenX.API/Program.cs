@@ -112,11 +112,11 @@ builder.Services
 
         options.ClientId =
                 builder.Configuration[
-                    "Authentication:Google:ClientId"];
+                    "Authentication:Google:ClientId"]!;
 
         options.ClientSecret =
        builder.Configuration[
-           "Authentication:Google:ClientSecret"];
+           "Authentication:Google:ClientSecret"]!;
 
         options.CallbackPath =
        "/api/auth/google-callback";

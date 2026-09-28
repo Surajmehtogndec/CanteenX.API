@@ -24,6 +24,8 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
     public virtual DbSet<Menucategory> Menucategories { get; set; }
 
     public virtual DbSet<Menuitem> Menuitems { get; set; }
+    
+
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseMySql("name=ConnectionStrings:DefaultConnection", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
@@ -125,6 +127,8 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(d => d.MenuCategoryId)
                 .HasConstraintName("menuitems_ibfk_2");
         });
+
+      
 
         OnModelCreatingPartial(modelBuilder);
     }
