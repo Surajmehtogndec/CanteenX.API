@@ -119,15 +119,31 @@ namespace CanteenX.API.Services.Auth
 
         public async Task<bool> ForgotPasswordAsync(string email)
         {
+            //  User find karna
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null) return false;
 
+            //  Secure Token generate karna
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+
+            //  Frontend URL fetch karna (Configuration se)
             var frontendUrl = _configuration["AppSettings:FrontendUrl"]
                 ?? throw new InvalidOperationException("Frontend URL is missing.");
 
             var resetLink = $"{frontendUrl}/Account/ResetPassword?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
-            await _emailService.SendPasswordResetEmailAsync(user.Email!, resetLink);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendPasswordResetEmailAsync(user.Email!, resetLink);
+                }
+                catch (Exception )
+                {
+                   
+                }
+            });
+            
 
             return true;
         }
@@ -226,8 +242,10 @@ namespace CanteenX.API.Services.Auth
             {
                 return await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings { Audience = new[] { clientId } });
             }
-            catch
+            catch(Exception ex)
             {
+                Console.WriteLine($"GOOGLE TOKEN ERROR: {ex.Message}");
+                       
                 return null;
             }
         }
