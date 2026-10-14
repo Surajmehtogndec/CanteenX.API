@@ -29,7 +29,6 @@
     <Folder Include="Migrations\" />
     <Folder Include="Middleware\" />
     <Folder Include="Security\" />
-    <Folder Include="Services\Interfaces\" />
     <Folder Include="wwwroot\uploads\canteens\" />
   </ItemGroup>
 

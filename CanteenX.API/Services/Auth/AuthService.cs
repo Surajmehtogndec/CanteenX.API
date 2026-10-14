@@ -1,10 +1,13 @@
-﻿using CanteenX.API.DTOs;
+﻿using CanteenX.API.Data;
+using CanteenX.API.DTOs;
 using CanteenX.API.Model;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace CanteenX.API.Services.Auth
@@ -15,16 +18,19 @@ namespace CanteenX.API.Services.Auth
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
 
+        private readonly CanteenxdbContext _context;
+
         // Constants for magic strings
         private const string RoleStudent = "Student";
         private const string RoleCanteenStaff = "CanteenStaff";
         private const string ProviderGoogle = "Google";
 
-        public AuthService(
+        public AuthService(CanteenxdbContext context,
             UserManager<ApplicationUser> userManager,
             IEmailService emailService,
             IConfiguration configuration)
         {
+            _context = context;
             _userManager = userManager;
             _emailService = emailService;
             _configuration = configuration;
@@ -55,9 +61,13 @@ namespace CanteenX.API.Services.Auth
 
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.FirstOrDefault() ?? RoleStudent;
+
             var token = await GenerateJwtTokenAsync(user, dto.RememberMe);
 
-            return SuccessAuthResponse("Login successful.", token, user, role);
+            // Generate and save Refresh Token
+            var refeshtoken = await CreateAndSaveRefreshTokenAsync(user.Id);
+
+            return SuccessAuthResponse("Login successful.", token, refeshtoken, user, role);
         }
 
 
@@ -87,7 +97,10 @@ namespace CanteenX.API.Services.Auth
             var roles = await _userManager.GetRolesAsync(user);
             var token = await GenerateJwtTokenAsync(user);
 
-            return SuccessAuthResponse("Google login successful.", token, user, roles.FirstOrDefault() ?? RoleStudent);
+            // Generate and save Refresh Token
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user.Id);
+
+            return SuccessAuthResponse("Google login successful.", token, refreshToken, user, roles.FirstOrDefault() ?? RoleStudent);
         }
 
         public async Task<AuthResponseDto?> GoogleRegisterAsync(string idToken)
@@ -114,7 +127,10 @@ namespace CanteenX.API.Services.Auth
             }
 
             var token = await GenerateJwtTokenAsync(user);
-            return SuccessAuthResponse("Google registration successful.", token, user, RoleStudent);
+
+            // Generate and save Refresh Token
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user.Id);
+            return SuccessAuthResponse("Google registration successful.", token, refreshToken, user, RoleStudent);
         }
 
         public async Task<bool> ForgotPasswordAsync(string email)
@@ -166,6 +182,69 @@ namespace CanteenX.API.Services.Auth
                 user, _userManager.Options.Tokens.PasswordResetTokenProvider, "ResetPassword", token);
         }
 
+
+
+
+
+
+        public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto dto)
+        {
+            // 1. Database se refresh token find karein (User data ke sath)
+            var storedToken = await _context.RefreshTokens
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.TokenHash == dto.RefreshToken);
+
+            // 2. Token ki validation check karein
+            if (storedToken == null)
+                return FailedAuthResponse("Invalid refresh token.");
+
+            if (storedToken.ExpiresAt < DateTime.UtcNow)
+                return FailedAuthResponse("Refresh token has expired. Please login again.");
+
+            if (storedToken.RevokedAt != null)
+                return FailedAuthResponse("Refresh token has been revoked. Security breach potential.");
+
+            var user = storedToken.User;
+            if (user == null || !user.IsActive)
+                return FailedAuthResponse("User account is inactive or not found.");
+
+            // 3. Purane token ko 'Revoke' (Cancel) karein (Isey Token Rotation kehte hain)
+            storedToken.RevokedAt = DateTime.UtcNow;
+
+            // 4. Naya JWT aur Naya Refresh Token banayein
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? RoleStudent;
+
+            var newJwtToken = await GenerateJwtTokenAsync(user);
+            var newRefreshToken = await CreateAndSaveRefreshTokenAsync(user.Id); // Aapka helper method
+
+            // 5. Purane token mein likh dein ki uski jagah kaunsa naya token aaya hai
+            storedToken.ReplacedByTokenHash = newRefreshToken;
+            _context.RefreshTokens.Update(storedToken);
+            await _context.SaveChangesAsync();
+
+            // 6. Naya response bhej dein
+            return SuccessAuthResponse("Token refreshed successfully.", newJwtToken, newRefreshToken, user, role);
+        }
+
+
+
+
+        public async Task<bool> RevokeRefreshTokenAsync(string token)
+        {
+            // Database se wo specific token dhoondein
+            var storedToken = await _context.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == token);
+
+            if (storedToken == null) return false;
+
+            // Aap chahein toh RevokedAt update kar sakte hain, ya seedha Delete kar sakte hain.
+            // Clean database ke liye hum isey delete kar dete hain:
+            _context.RefreshTokens.Remove(storedToken);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         // =====================================================
         // PRIVATE HELPER METHODS
         // =====================================================
@@ -173,14 +252,20 @@ namespace CanteenX.API.Services.Auth
         private async Task<AuthResponseDto> RegisterUserInternalAsync(RegisterDto dto, string role)
         {
             var email = dto.Email.Trim().ToLower();
-            var phone = dto.PhoneNumber.Trim();
+            var phone = dto.PhoneNumber?.Trim();
 
             if (await _userManager.FindByEmailAsync(email) != null)
                 return FailedAuthResponse("An account with this email already exists.");
 
-            if (_userManager.Users.Any(u => u.PhoneNumber == phone))
-                return FailedAuthResponse("An account with this phone number already exists.");
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var phoneExists = await _userManager.Users.AnyAsync(u => u.PhoneNumber == phone);
+                if (phoneExists)
+                    return FailedAuthResponse("An account with this phone number already exists.");
+            }
+                
 
+            
             var user = new ApplicationUser
             {
                 FullName = dto.FullName.Trim(),
@@ -203,7 +288,10 @@ namespace CanteenX.API.Services.Auth
             }
 
             var token = await GenerateJwtTokenAsync(user);
-            return SuccessAuthResponse("Registration successful.", token, user, role);
+            // Generate and save Refresh Token
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user.Id);
+
+            return SuccessAuthResponse("Registration successful.", token, refreshToken, user, role);
         }
 
         private async Task<string> GenerateJwtTokenAsync(ApplicationUser user, bool rememberMe = false)
@@ -266,11 +354,12 @@ namespace CanteenX.API.Services.Auth
             Message = message
         };
 
-        private AuthResponseDto SuccessAuthResponse(string message, string token, ApplicationUser user, string role) => new()
+        private AuthResponseDto SuccessAuthResponse(string message, string token, string refreshToken, ApplicationUser user, string role) => new()
         {
             Success = true,
             Message = message,
             AccessToken = token,
+            RefreshToken = refreshToken,
             User = new UserInfoDto
             {
                 Id = user.Id,
@@ -280,5 +369,30 @@ namespace CanteenX.API.Services.Auth
                 Role = role
             }
         };
+
+        // NAYA METHOD: Secure Refresh Token generate aur save karne ke liye
+        private async Task<string> CreateAndSaveRefreshTokenAsync(string userId)
+        {
+            var randomNumber = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomNumber);
+            }
+            var refreshTokenString = Convert.ToBase64String(randomNumber);
+
+            var refreshToken = new RefreshToken
+            {
+                UserId = userId,
+                TokenHash = refreshTokenString,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(5), // 7 days validity
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            return refreshTokenString;
+        }
+
     }
 }

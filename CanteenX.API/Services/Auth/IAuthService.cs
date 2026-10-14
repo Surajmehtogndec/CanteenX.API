@@ -14,5 +14,9 @@ namespace CanteenX.API.Services.Auth
         Task<AuthResponseDto?> GoogleLoginAsync(string idToken);
 
         Task<AuthResponseDto?> GoogleRegisterAsync(string idToken);
+
+        Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto dto);
+        Task<bool> RevokeRefreshTokenAsync(string token);
+
     }
 }

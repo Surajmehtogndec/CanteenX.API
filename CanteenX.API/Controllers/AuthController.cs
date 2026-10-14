@@ -17,6 +17,43 @@ namespace CanteenX.API.Controllers
         {
             _authService = authService;
         }
+
+
+
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto model)
+        {
+            if (string.IsNullOrEmpty(model.RefreshToken))
+            {
+                return BadRequest(new AuthResponseDto { Success = false, Message = "Refresh token is required." });
+            }
+
+            var result = await _authService.RefreshTokenAsync(model);
+
+            if (!result.Success)
+            {
+                return Unauthorized(result); // 401 Unauthorized return karein taaki frontend user ko logout kar de
+            }
+
+            return Ok(result);
+        }
+
+
+
+        [HttpPost("revoke-token")]
+        public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequestDto model)
+        {
+            if (string.IsNullOrEmpty(model.Token))
+                return BadRequest(new { Message = "Token is required." });
+
+            var result = await _authService.RevokeRefreshTokenAsync(model.Token);
+
+            if (!result)
+                return NotFound(new { Message = "Token not found." });
+
+            return Ok(new { Message = "Token revoked successfully." });
+        }
         // =====================================================
         // REGISTER
         // POST: /api/auth/register

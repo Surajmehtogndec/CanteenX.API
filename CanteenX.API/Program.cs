@@ -1,14 +1,15 @@
 using CanteenX.API.Data;
 using CanteenX.API.Helpers;
 using CanteenX.API.Model;
+using CanteenX.API.Services;
+using CanteenX.API.Services.AdminServices;
+using CanteenX.API.Services.Auth;
+using CanteenX.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using CanteenX.API.Services.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using CanteenX.API.Services;
-using CanteenX.API.Services.AdminServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,21 @@ builder.Services.AddDbContext<CanteenxdbContext>(options =>
     )
 
     );
+
+
+// =====================================================
+// CORS CONFIGURATION
+// =====================================================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowMVCFrontend", policy =>
+    {
+        policy.WithOrigins("https://localhost:7180") // Yahan apne MVC project ka actual URL daalein
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Cookies (JWT/Refresh Token) ke liye zaroori hai
+    });
+});
 
 // =====================================================
 // ASP.NET CORE IDENTITY
@@ -55,7 +71,7 @@ builder.Services
 
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 {
-    options.TokenLifespan = TimeSpan.FromMinutes(5);
+    options.TokenLifespan = TimeSpan.FromMinutes(10);
 });
 
 
@@ -130,7 +146,7 @@ builder.Services
 builder.Services.AddScoped<IAdminServices, AdminServices>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<ITokenService, TokenService>();
 // =====================================================
 // CONTROLLERS + SWAGGER
 // =====================================================
@@ -164,6 +180,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowMVCFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 

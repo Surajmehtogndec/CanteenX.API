@@ -25,7 +25,7 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
 
     public virtual DbSet<Menuitem> Menuitems { get; set; }
     
-
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseMySql("name=ConnectionStrings:DefaultConnection", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
@@ -128,7 +128,69 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
                 .HasConstraintName("menuitems_ibfk_2");
         });
 
-      
+        modelBuilder.Entity<RefreshToken>(entity => {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("refreshtokens");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+            entity.HasIndex(e => e.TokenHash, "TokenHash").IsUnique();
+
+            // Map Id to bigint(20) and AUTO_INCREMENT
+            entity.Property(e => e.Id)
+            .HasColumnType("bigint(20)")
+            .ValueGeneratedOnAdd();
+
+            // Map UserId to varchar(255)
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasMaxLength(255)
+                .UseCollation("utf8mb4_general_ci");
+
+            // Map TokenHash to varchar(64)
+            entity.Property(e => e.TokenHash)
+                .IsRequired()
+                .HasMaxLength(64)
+                .UseCollation("utf8mb4_general_ci");
+
+
+            // Map ExpiresAt to datetime
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnType("datetime");
+
+
+            // Map CreatedAt to datetime with default current_timestamp()
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+
+            // Nullable RevokedAt
+            entity.Property(e => e.RevokedAt)
+                .HasColumnType("datetime");
+
+            // Map ReplacedByTokenHash to varchar(64)
+            entity.Property(e => e.ReplacedByTokenHash)
+                .HasMaxLength(64)
+                .UseCollation("utf8mb4_general_ci");
+
+
+            // Map CreatedByIp to varchar(45)
+            entity.Property(e => e.CreatedByIp)
+                .HasMaxLength(45)
+                .UseCollation("utf8mb4_general_ci");
+
+            // Map RevokedByIp to varchar(45)
+            entity.Property(e => e.RevokedByIp)
+                .HasMaxLength(45)
+                .UseCollation("utf8mb4_general_ci");
+
+            // Foreign Key Relationship with ApplicationUser
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK_refreshtokens_AspNetUsers_UserId")
+                .OnDelete(DeleteBehavior.Cascade);
+
+        });
 
         OnModelCreatingPartial(modelBuilder);
     }
