@@ -81,6 +81,53 @@ namespace CanteenX.API.Controllers
             });
         }
 
+        [HttpGet("loadprofiledata/{id}")]
+        public async Task<IActionResult> LoadProfileData(string id)
+        {
+            var profileData = await _adminServices.GetProfileDataAsync(id);
+            if (profileData == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "User not found."
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                data = profileData
+            });
+        }
 
+
+
+        [HttpPut("updateprofiledata/{id}")]
+        public async Task<IActionResult> UpdateProfileData(string id, [FromBody] UserProfileDtos dto)
+        {
+            var result = await _adminServices.UpdateProfileDataAsync(id, dto);
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "User not found."
+                });
+            }
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to update profile data.",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                message = "Profile data updated successfully."
+            });
+        }
     }
 }

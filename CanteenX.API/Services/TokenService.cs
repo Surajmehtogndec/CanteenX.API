@@ -39,7 +39,7 @@ namespace CanteenX.API.Services
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15), // Access token short-lived (15 mins)
+                expires: DateTime.UtcNow.AddDays(7), // Access token short-lived (7 days)
                 signingCredentials: creds
             );
 
@@ -51,7 +51,7 @@ namespace CanteenX.API.Services
             var randomNumber = new byte[32];
             using (var rng = RandomNumberGenerator.Create())
             {
-                rng.GetBytes(randomNumber);
+                rng.GetBytes(randomNumber); 
             }
 
             var tokenString = Convert.ToBase64String(randomNumber);

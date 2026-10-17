@@ -14,7 +14,7 @@ namespace CanteenX.API.Services.AdminServices
 
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public AdminServices(CanteenxdbContext context, UserManager<ApplicationUser> userManager,IWebHostEnvironment environment)
+        public AdminServices(CanteenxdbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment environment)
         {
             _environment = environment;
             _context = context;
@@ -32,7 +32,7 @@ namespace CanteenX.API.Services.AdminServices
             var user = await _userManager.GetUsersInRoleAsync("CanteenStaff");
 
 
-         
+
             var availableStaff = user
                .Select(user => new CanteenStaffOptionDto
                {
@@ -48,7 +48,7 @@ namespace CanteenX.API.Services.AdminServices
 
 
         // add canteen post ka core logic implement kiya hai 
-        public async Task<bool> AddCanteenAsync( CreateCanteenDto dto)
+        public async Task<bool> AddCanteenAsync(CreateCanteenDto dto)
         {
             var user = await _userManager.FindByIdAsync(dto.UserId);
 
@@ -69,7 +69,7 @@ namespace CanteenX.API.Services.AdminServices
                 .FirstOrDefaultAsync(x => x.UserId == dto.UserId);
 
 
-            if(existingCanteen != null)
+            if (existingCanteen != null)
             {
                 return false;
             }
@@ -95,11 +95,12 @@ namespace CanteenX.API.Services.AdminServices
                 var extension = Path.GetExtension(dto.ImageUrl?.FileName)
                      ?.ToLowerInvariant();
 
-                if (!allowedExtensions.Contains(extension)){
+                if (!allowedExtensions.Contains(extension))
+                {
 
-                    return false;   
+                    return false;
                 }
-                if(dto.ImageUrl?.Length> 5 * 1024 * 1024)
+                if (dto.ImageUrl?.Length > 5 * 1024 * 1024)
                 {
                     return false;
                 }
@@ -107,7 +108,7 @@ namespace CanteenX.API.Services.AdminServices
 
                 // wwwroot/uploads/canteens
 
-                var uploadFolder = Path.Combine(_environment.WebRootPath,"uploads", "canteens");
+                var uploadFolder = Path.Combine(_environment.WebRootPath, "uploads", "canteens");
                 if (!Directory.Exists(uploadFolder))
                 {
                     Directory.CreateDirectory(uploadFolder);
@@ -163,13 +164,42 @@ namespace CanteenX.API.Services.AdminServices
 
         }
 
+        public async Task<UserProfileDtos?> GetProfileDataAsync(string userId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null)
+            {
+                return null;
+            }
+
+            return new UserProfileDtos
+            {
+                FullName = user.FullName,
+                Email = user.Email ?? string.Empty,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                IsActive = user.IsActive
+            };
+        }
 
 
+        public async Task<IdentityResult?> UpdateProfileDataAsync(string userId, UserProfileDtos dto)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user is null)
+            {
+                return null;
+            }
+            user.FullName = dto.FullName;
+            user.Email = dto.Email;
+            user.PhoneNumber = dto.PhoneNumber;
+            user.IsActive = dto.IsActive;
+            var result = await _userManager.UpdateAsync(user);
+            return result;
 
-
-
-
-        
-
+        }
     }
 }

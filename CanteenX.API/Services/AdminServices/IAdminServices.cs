@@ -1,9 +1,14 @@
 ﻿using CanteenX.API.DTOs.Admin;
+using Microsoft.AspNetCore.Identity;
 namespace CanteenX.API.Services.AdminServices
 {
     public interface IAdminServices
     {
         Task<List<CanteenStaffOptionDto>> GetAvailableCanteenStaffAsync();
         Task<bool> AddCanteenAsync(CreateCanteenDto dto);
+
+        Task<UserProfileDtos?> GetProfileDataAsync(string userId);
+
+        Task<IdentityResult?> UpdateProfileDataAsync(string userId, UserProfileDtos dto);
     }
 }
