@@ -42,6 +42,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 // =====================================================
 // ASP.NET CORE IDENTITY
 // =====================================================
@@ -71,7 +72,7 @@ builder.Services
 
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 {
-    options.TokenLifespan = TimeSpan.FromMinutes(10);
+    options.TokenLifespan = TimeSpan.FromMinutes(15);
 });
 
 

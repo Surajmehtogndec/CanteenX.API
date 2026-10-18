@@ -384,7 +384,7 @@ namespace CanteenX.API.Services.Auth
             {
                 UserId = userId,
                 TokenHash = refreshTokenString,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(5), // 7 days validity
+                ExpiresAt = DateTime.UtcNow.AddDays(7), // 7 days validity
                 CreatedAt = DateTime.UtcNow
             };
 

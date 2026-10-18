@@ -39,7 +39,7 @@ namespace CanteenX.API.Services
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7), // Access token short-lived (7 days)
+                expires: DateTime.UtcNow.AddMinutes(15), // Access token short-lived (15 minutes)
                 signingCredentials: creds
             );
 
@@ -55,11 +55,14 @@ namespace CanteenX.API.Services
             }
 
             var tokenString = Convert.ToBase64String(randomNumber);
+            using var sha256 = SHA256.Create();
+            var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(tokenString));
+            var hashedTokenString = Convert.ToBase64String(hashBytes);
 
             return new RefreshToken
             {
                 UserId = userId,
-                TokenHash = tokenString,
+                TokenHash = hashedTokenString,
                 ExpiresAt = DateTime.UtcNow.AddDays(7), // Refresh token long-lived (7 days)
                 CreatedAt = DateTime.UtcNow,
                 CreatedByIp = ipAddress
