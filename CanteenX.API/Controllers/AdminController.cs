@@ -1,5 +1,6 @@
 ﻿using CanteenX.API.DTOs;
 using CanteenX.API.DTOs.Admin;
+using CanteenX.API.DTOs.Admin.Paginations;
 using CanteenX.API.Services.AdminServices;
 using CanteenX.API.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -128,6 +129,65 @@ namespace CanteenX.API.Controllers
                 success = true,
                 message = "Profile data updated successfully."
             });
+        }
+
+
+        [HttpGet("user-directory")]
+        public async Task<ActionResult<UserDirectoryResponseDto>> GetUsersAsync([FromQuery] UserDirectoryRequestDto request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Validate pagination parameters
+                if (request.PageNumber < 1)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Page number must be at least 1."
+                    });
+                }
+
+                if (request.PageSize < 1 || request.PageSize > 100)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Page size must be between 1 and 100."
+                    });
+                }
+
+                var result = await _adminServices.GetUserDirectoryAsync(
+                   request,
+                   cancellationToken);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Users retrieved successfully.",
+                    data = result
+                });
+
+
+            }
+            catch(OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                   StatusCodes.Status500InternalServerError,
+                   new
+                   {
+                       success = false,
+                       message = ex.Message,
+                       innerError = ex.InnerException?.Message
+                       
+                   });
+            }
+
+
         }
     }
 }

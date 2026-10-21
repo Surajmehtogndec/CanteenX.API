@@ -1,8 +1,10 @@
 ﻿using CanteenX.API.Data;
 using CanteenX.API.DTOs.Admin;
+using CanteenX.API.DTOs.Admin.Paginations;
 using CanteenX.API.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
 namespace CanteenX.API.Services.AdminServices
 {
@@ -201,5 +203,134 @@ namespace CanteenX.API.Services.AdminServices
             return result;
 
         }
+
+        // yaha per user record pagination implmenet kiya gya hai 
+
+    public async Task<UserDirectoryResponseDto> GetUserDirectoryAsync(UserDirectoryRequestDto request, CancellationToken cancellationToken = default)
+{
+    // 1. Validate pagination inputs
+    int pageNumber = Math.Max(1, request.PageNumber);
+    int pageSize = Math.Clamp(request.PageSize, 1, 50);
+
+    // 2. Base user query (AsNoTracking is excellent for read-only queries)
+    var query = _context.Users.AsNoTracking().AsQueryable();
+
+    //// 3. Apply search filter (OPTIMIZED)
+    //if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+    //{
+    //    // ToLower() removed for database index compatibility
+    //    string search = request.SearchTerm.Trim(); 
+
+    //    query = query.Where(u =>
+    //        u.FullName.Contains(search) ||
+    //        (u.Email != null && u.Email.Contains(search)) ||
+    //        (u.PhoneNumber != null && u.PhoneNumber.Contains(search)));
+    //}
+
+    //// 4. Apply status filter
+    //if (!string.IsNullOrWhiteSpace(request.Status))
+    //{
+    //    if (request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+    //    {
+    //        query = query.Where(u => u.IsActive);
+    //    }
+    //    else if (request.Status.Equals("Inactive", StringComparison.OrdinalIgnoreCase))
+    //    {
+    //        query = query.Where(u => !u.IsActive);
+    //    }
+    //}
+
+    //// 5. Filter by role
+    //if (!string.IsNullOrWhiteSpace(request.Role) &&
+    //    !request.Role.Equals("All", StringComparison.OrdinalIgnoreCase))
+    //{
+    //    var userIdsWithRole =
+    //        from userRole in _context.UserRoles
+    //        join role in _context.Roles on userRole.RoleId equals role.Id
+    //        where role.Name == request.Role
+    //        select userRole.UserId;
+
+    //    query = query.Where(u => userIdsWithRole.Contains(u.Id));
+    //}
+
+    // 6. Count records after filters, before pagination
+    int totalRecords = await query.CountAsync(cancellationToken);
+
+    // If no records found, return early to save database trips
+    if (totalRecords == 0)
+    {
+        return new UserDirectoryResponseDto
+        {
+            Items = new List<UserDirectoryItemDto>(),
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalRecords = 0,
+            TotalPages = 0
+        };
+    }
+
+    //// 7. Apply sorting
+    //bool descending = string.Equals(request.SortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+    //query = request.SortBy?.ToLowerInvariant() switch
+    //{
+    //    "email" => descending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+    //    "createdat" => descending ? query.OrderByDescending(u => u.CreatedAt) : query.OrderBy(u => u.CreatedAt),
+    //    "isactive" => descending ? query.OrderByDescending(u => u.IsActive) : query.OrderBy(u => u.IsActive),
+    //    _ => descending ? query.OrderByDescending(u => u.FullName) : query.OrderBy(u => u.FullName)
+    //};
+
+    // 8. Stable ordering
+    //query = ((IOrderedQueryable<ApplicationUser>)query).ThenBy(u => u.Id);
+
+    // 9. Fetch only the requested page (FIXED SKIP LOGIC)
+    var users = await query
+        .Skip((pageNumber - 1) * pageSize)
+        .Take(pageSize)
+        .Select(u => new UserDirectoryItemDto
+        {
+            Id = u.Id,
+            FullName = u.FullName,
+            Email = u.Email!,
+            IsActive = u.IsActive,
+            CreatedAt = u.CreatedAt
+        })
+        .ToListAsync(cancellationToken);
+
+    // 10. Fetch roles efficiently
+    var userIds = users.Select(u => u.Id).ToList();
+
+    var roles = await (
+        from userRole in _context.UserRoles
+        join role in _context.Roles on userRole.RoleId equals role.Id
+        where userIds.Contains(userRole.UserId)
+        select new
+        {
+            userRole.UserId,
+            RoleName = role.Name
+        }
+    ).ToListAsync(cancellationToken);
+
+    // OPTIMIZATION: Use ILookup for O(1) fast mapping instead of O(N^2) Where() in a loop
+    var rolesLookup = roles.ToLookup(r => r.UserId, r => r.RoleName);
+
+    foreach (var user in users)
+    {
+        var userRoles = rolesLookup[user.Id];
+        user.Role = userRoles.Any() ? string.Join(", ", userRoles) : "No Role";
+    }
+
+    // 11. Return paginated response
+    int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
+    return new UserDirectoryResponseDto
+    {
+        Items = users,
+        PageNumber = pageNumber,
+        PageSize = pageSize,
+        TotalRecords = totalRecords,
+        TotalPages = totalPages
+    };
+}
     }
 }
