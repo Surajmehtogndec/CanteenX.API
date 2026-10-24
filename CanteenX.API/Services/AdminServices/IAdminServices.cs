@@ -13,5 +13,6 @@ namespace CanteenX.API.Services.AdminServices
         Task<IdentityResult?> UpdateProfileDataAsync(string userId, UserProfileDtos dto);
 
         Task<UserDirectoryResponseDto> GetUserDirectoryAsync(UserDirectoryRequestDto request,CancellationToken cancellationToken);
+        Task<IdentityResult?> UpdateUserDirectoryAsync(string userId, UserDirectoryItemDto dto, CancellationToken cancellationToken);
     }
 }

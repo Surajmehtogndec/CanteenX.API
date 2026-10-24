@@ -11,15 +11,15 @@
             set => _pageSize = value < 1
                 ? 10
                 : Math.Min(value, MaxPageSize);
-        }                                      
-        //public string? SearchTerm { get; set; }
-        //public string? Status { get; set; }
+        }
+        public string? SearchTerm { get; set; }
+        public string? Status { get; set; }
 
-        //public string? Role { get; set; }
+        public string? Role { get; set; }
 
-        //public string SortBy { get; set; } = "FullName";
+        public string SortBy { get; set; } = "FullName";
 
-        //public string SortDirection { get; set; } = "asc";
+        public string SortDirection { get; set; } = "asc";
 
     }
 }

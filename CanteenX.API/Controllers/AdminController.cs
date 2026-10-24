@@ -189,5 +189,34 @@ namespace CanteenX.API.Controllers
 
 
         }
+
+
+        [HttpPut("updateuserdirectory/{userId}")]
+        public async Task<IActionResult> UpdateUserDirectoryAsync(string userId, [FromBody] UserDirectoryItemDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _adminServices.UpdateUserDirectoryAsync(userId, dto, cancellationToken);
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "User not found."
+                });
+            }
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to update user directory.",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                message = "User directory updated successfully."
+            });
+        }
     }
 }
