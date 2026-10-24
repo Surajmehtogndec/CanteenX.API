@@ -292,6 +292,7 @@ namespace CanteenX.API.Services.AdminServices
                     Id = u.Id,
                     FullName = u.FullName,
                     Email = u.Email!,
+                  
                     IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt
                 })
@@ -346,8 +347,33 @@ namespace CanteenX.API.Services.AdminServices
             }
             user.FullName = dto.FullName;
             user.Email = dto.Email;
+            user.UserName = dto.Email;
             user.IsActive = dto.IsActive;
+            
             var result = await _userManager.UpdateAsync(user);
+            if (!string.IsNullOrWhiteSpace(dto.Role))
+            {
+                var currentRoles = await _userManager.GetRolesAsync(user);
+
+                if (!currentRoles.Contains(dto.Role))
+                {
+                    if (currentRoles.Any())
+                    {
+                        var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                        if (!removeResult.Succeeded)
+                        {
+                            return removeResult;
+                        }
+                    }
+
+                    var addResult = await _userManager.AddToRoleAsync(user, dto.Role);
+                    if (!addResult.Succeeded)
+                    {
+                        return addResult;
+                    }
+                }
+            }
+
             return result;
 
         }
