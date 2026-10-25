@@ -14,5 +14,8 @@ namespace CanteenX.API.Services.AdminServices
 
         Task<UserDirectoryResponseDto> GetUserDirectoryAsync(UserDirectoryRequestDto request,CancellationToken cancellationToken);
         Task<IdentityResult?> UpdateUserDirectoryAsync(string userId, UserDirectoryItemDto dto, CancellationToken cancellationToken);
+        Task<IdentityResult?> DeleteUserDirectoryAsync(string userId, CancellationToken cancellationToken);
+
     }
 }
+              

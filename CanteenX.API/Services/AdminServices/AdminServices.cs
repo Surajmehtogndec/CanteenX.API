@@ -213,10 +213,10 @@ namespace CanteenX.API.Services.AdminServices
             int pageNumber = Math.Max(1, request.PageNumber);
             int pageSize = Math.Clamp(request.PageSize, 1, 50);
 
-            // 2. Base user query (AsNoTracking is excellent for read-only queries)
-            var query = _context.Users.AsNoTracking().AsQueryable();
+            // 2. base read only query
+            IQueryable<ApplicationUser> query = _context.Users.AsNoTracking();
 
-            // 3. Apply search filter (OPTIMIZED)
+            // 3. Apply search filter
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 // ToLower() removed for database index compatibility
@@ -241,18 +241,19 @@ namespace CanteenX.API.Services.AdminServices
                 }
             }
 
-            // 5. filter by role
+            // 5. filter by role                  
             if (!string.IsNullOrWhiteSpace(request.Role) &&
                 !request.Role.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 var userIdsWithRole =
-                    from userRole in _context.UserRoles // Typo fixed: _context.Roles ki jagah _context.UserRoles
-                    join role in _context.Roles on userRole.RoleId equals role.Id // Typo fixed: RoleId, Id, userRole
-                    where role.Name == request.Role // Typo fixed: Name
-                    select userRole.UserId; // Typo fixed: UserId
+                    from userRole in _context.UserRoles.AsNoTracking()
+                    join role in _context.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                    where role.Name == request.Role
+                    select userRole.UserId;
 
-                query = query.Where(u => userIdsWithRole.Contains(u.Id)); // Typo fixed: Where, Contains, Id
+                query = query.Where(u => userIdsWithRole.Contains(u.Id));
             }
+
             // 6. Count records after filters, before pagination
             int totalRecords = await query.CountAsync(cancellationToken);
 
@@ -269,10 +270,13 @@ namespace CanteenX.API.Services.AdminServices
                 };
             }
 
+            int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+            pageNumber = Math.Min(pageNumber, totalPages);
+
             //// 7. apply sorting
             bool descending = string.Equals(request.SortDirection, "desc", StringComparison.OrdinalIgnoreCase);
 
-            query = request.SortBy?.ToLowerInvariant() switch
+            IOrderedQueryable<ApplicationUser> orderedQuery = request.SortBy?.Trim().ToLowerInvariant() switch
             {
                 "email" => descending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
                 "createdat" => descending ? query.OrderByDescending(u => u.CreatedAt) : query.OrderBy(u => u.CreatedAt),
@@ -280,11 +284,10 @@ namespace CanteenX.API.Services.AdminServices
                 _ => descending ? query.OrderByDescending(u => u.FullName) : query.OrderBy(u => u.FullName)
             };
 
-            // 8. stable ordering
-            query = ((IOrderedQueryable<ApplicationUser>)query).ThenBy(u => u.Id);
+            orderedQuery = orderedQuery.ThenBy(u => u.Id); // Ensure stable ordering
 
             // 9. Fetch only the requested page (FIXED SKIP LOGIC)
-            var users = await query
+            var users = await orderedQuery
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => new UserDirectoryItemDto
@@ -292,7 +295,7 @@ namespace CanteenX.API.Services.AdminServices
                     Id = u.Id,
                     FullName = u.FullName,
                     Email = u.Email!,
-                  
+
                     IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt
                 })
@@ -302,9 +305,9 @@ namespace CanteenX.API.Services.AdminServices
             var userIds = users.Select(u => u.Id).ToList();
 
             var roles = await (
-                from userRole in _context.UserRoles
-                join role in _context.Roles on userRole.RoleId equals role.Id
-                where userIds.Contains(userRole.UserId)
+                from userRole in _context.UserRoles.AsNoTracking()
+                join role in _context.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                where userIds.Contains(userRole.UserId) && role.Name != null
                 select new
                 {
                     userRole.UserId,
@@ -321,8 +324,7 @@ namespace CanteenX.API.Services.AdminServices
                 user.Role = userRoles.Any() ? string.Join(", ", userRoles) : "No Role";
             }
 
-            // 11. Return paginated response
-            int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
 
             return new UserDirectoryResponseDto
             {
@@ -337,46 +339,108 @@ namespace CanteenX.API.Services.AdminServices
 
 
 
-        public async Task<IdentityResult?> UpdateUserDirectoryAsync(string userId, UserDirectoryItemDto dto, CancellationToken cancellationToken)
+        public async Task<IdentityResult?> UpdateUserDirectoryAsync(string userId, UserDirectoryItemDto dto, CancellationToken cancellationToken = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+            ArgumentNullException.ThrowIfNull(dto);
+
+            // 1. Fetch user
             var user = await _userManager.FindByIdAsync(userId);
             if (user is null)
             {
                 return null;
             }
-            user.FullName = dto.FullName;
-            user.Email = dto.Email;
-            user.UserName = dto.Email;
-            user.IsActive = dto.IsActive;
-            
-            var result = await _userManager.UpdateAsync(user);
-            if (!string.IsNullOrWhiteSpace(dto.Role))
+
+            // Sanitize inputs
+            string newFullName = dto.FullName?.Trim() ?? string.Empty;
+            string newEmail = dto.Email?.Trim() ?? string.Empty;
+            string? targetRole = dto.Role?.Trim();
+
+            // 2. Use a Transaction so User update + Role update happen atomically
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
             {
-                var currentRoles = await _userManager.GetRolesAsync(user);
+                // 3. Only hit the database for User table if profile fields actually changed
+                bool profileChanged =
+                    !string.Equals(user.FullName, newFullName, StringComparison.Ordinal) ||
+                    !string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(user.UserName, newEmail, StringComparison.OrdinalIgnoreCase) ||
+                    user.IsActive != dto.IsActive;
 
-                if (!currentRoles.Contains(dto.Role))
+                if (profileChanged)
                 {
-                    if (currentRoles.Any())
-                    {
-                        var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
-                        if (!removeResult.Succeeded)
-                        {
-                            return removeResult;
-                        }
-                    }
+                    user.FullName = newFullName;
+                    user.Email = newEmail;
+                    user.UserName = newEmail;
+                    user.IsActive = dto.IsActive;
 
-                    var addResult = await _userManager.AddToRoleAsync(user, dto.Role);
-                    if (!addResult.Succeeded)
+                    var updateResult = await _userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
                     {
-                        return addResult;
+                        return updateResult; // Rollback happens automatically on dispose
                     }
                 }
+
+                // 4. Optimize Role Update                                                                                                                                                               
+                if (!string.IsNullOrWhiteSpace(targetRole))
+                {
+                    var currentRoles = await _userManager.GetRolesAsync(user);
+
+                    // Check if the user already has ONLY this exact role (case-insensitive)
+                    bool hasOnlyTargetRole = currentRoles.Count == 1 &&
+                        currentRoles.Contains(targetRole, StringComparer.OrdinalIgnoreCase);
+
+                    if (!hasOnlyTargetRole)
+                    {
+                        if (currentRoles.Count > 0)
+                        {
+                            var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                            if (!removeResult.Succeeded)
+                            {
+                                return removeResult;
+                            }
+                        }
+
+                        var addResult = await _userManager.AddToRoleAsync(user, targetRole);
+                        if (!addResult.Succeeded)
+                        {
+                            return addResult;
+                        }
+                    }
+                }
+
+                // 5. Commit all changes together
+                await transaction.CommitAsync(cancellationToken);
+                return IdentityResult.Success;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+
+        public async Task<IdentityResult?> DeleteUserDirectoryAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null)
+            {
+                return null;
             }
 
+            var result = await _userManager.DeleteAsync(user);
             return result;
-
         }
+
+
+
+
+
     }
 
 }

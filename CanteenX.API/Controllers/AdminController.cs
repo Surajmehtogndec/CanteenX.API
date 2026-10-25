@@ -149,7 +149,7 @@ namespace CanteenX.API.Controllers
 
                 if (request.PageSize < 1 || request.PageSize > 100)
                 {
-                    return BadRequest(new
+                    return BadRequest(new 
                     {
                         success = false,
                         message = "Page size must be between 1 and 100."
@@ -216,6 +216,35 @@ namespace CanteenX.API.Controllers
             {
                 success = true,
                 message = "User directory updated successfully."
+            });
+        }
+
+
+        [HttpDelete("deleteuserdirectory/{userId}")]
+        public async Task<IActionResult> DeleteUserDirectoryAsync(string userId, CancellationToken cancellationToken)
+        {
+            var result = await _adminServices.DeleteUserDirectoryAsync(userId, cancellationToken);
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "User not found."
+                });
+            }
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to delete user directory.",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                message = "User directory deleted successfully."
             });
         }
     }
