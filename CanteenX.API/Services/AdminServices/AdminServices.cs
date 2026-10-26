@@ -295,7 +295,7 @@ namespace CanteenX.API.Services.AdminServices
                     Id = u.Id,
                     FullName = u.FullName,
                     Email = u.Email!,
-
+                    PhoneNumber = u.PhoneNumber ?? "Not Provided",
                     IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt
                 })
@@ -438,7 +438,39 @@ namespace CanteenX.API.Services.AdminServices
         }
 
 
+      public async Task<UserDirectoryResponseDto> GetCanteensDirectoryAsync(CanteenDirectoryRequestDto request, CancellationToken cancellationToken)
+        {
+            // validate pagination inputs
+            int pageNumber = Math.Max(1, request.PageNumber);
+            int pageSize = Math.Clamp(request.PageSize, 1, 50);
 
+            // base read only query 
+            var query = _context.Canteens.AsNoTracking();
+
+            //Apply search filter
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                string search = request.SearchTerm.Trim();
+                query = query.Where(c =>
+                     c.CanteenName.Contains(search) ||
+                     (c.Location != null && c.Location.Contains(search)));
+            }
+
+            // 4. Apply status filter
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                if (request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(c => c.IsActive);
+                }
+                else if (request.Status.Equals("Inactive", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(c => !c.IsActive);
+                }
+            }
+
+
+        }
 
 
     }
