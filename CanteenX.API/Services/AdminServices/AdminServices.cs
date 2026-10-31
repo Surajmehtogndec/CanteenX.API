@@ -438,7 +438,7 @@ namespace CanteenX.API.Services.AdminServices
         }
 
 
-      public async Task<UserDirectoryResponseDto> GetCanteensDirectoryAsync(CanteenDirectoryRequestDto request, CancellationToken cancellationToken)
+      public async Task<CanteenDirectoryResponseDto> GetCanteensDirectoryAsync(CanteenDirectoryRequestDto request, CancellationToken cancellationToken)
         {
             // validate pagination inputs
             int pageNumber = Math.Max(1, request.PageNumber);
@@ -456,20 +456,61 @@ namespace CanteenX.API.Services.AdminServices
                      (c.Location != null && c.Location.Contains(search)));
             }
 
-            // 4. Apply status filter
-            if (!string.IsNullOrWhiteSpace(request.Status))
+            if (!string.IsNullOrWhiteSpace(request.Status) && !request.Status.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 if (request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
                 {
-                    query = query.Where(c => c.IsActive);
+                    query = query.Where(c => c.IsActive == true);
                 }
-                else if (request.Status.Equals("Inactive", StringComparison.OrdinalIgnoreCase))
+                else if (request.Status.Equals("Inactive", StringComparison.OrdinalIgnoreCase)) // "Hidden" in UI
                 {
-                    query = query.Where(c => !c.IsActive);
+                    query = query.Where(c => c.IsActive == false || c.IsActive == null);
                 }
             }
 
+            int totalRecords = await query.CountAsync(cancellationToken);
+            if(totalRecords == 0)
+            {
+                return new CanteenDirectoryResponseDto
+                {
+                    Items = new List<CanteenDirectoryItemDto>(),
+                    PageNumber = pageNumber,
+                    PageSize=pageSize,
+                    TotalRecords = 0,
+                    TotalPages = 0
+                };
+            }
 
+
+            int totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+            pageNumber = Math.Min(pageNumber, totalPages);
+
+
+            var canteens = await query
+                .OrderByDescending(c => c.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new CanteenDirectoryItemDto
+                {
+                   CanteenId = c.CanteenId,
+                   CanteenName = c.CanteenName,
+                   Location = c.Location!,
+                   Description = c.Description!,
+                   ImageUrl = c.ImageUrl!,
+                   IsActive = c.IsActive ?? false,
+                   CreatedAt = c.CreatedAt
+                })
+                .ToListAsync(cancellationToken);
+
+            return new CanteenDirectoryResponseDto
+            {
+
+                Items = canteens,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalRecords = totalRecords,
+                TotalPages = totalPages
+            };
         }
 
 

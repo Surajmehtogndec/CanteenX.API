@@ -2,6 +2,7 @@
 {
     public sealed class CanteenDirectoryItemDto
     {
+        public int CanteenId { get; set; }
         public string CanteenName { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;

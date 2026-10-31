@@ -8,8 +8,12 @@ using CanteenX.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using CanteenX.API.Configurations;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using CanteenX.API.Services.PaymentsServices;
+using CanteenX.API.Services.PaymentsServices.Interfaces;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +31,9 @@ builder.Services.AddDbContext<CanteenxdbContext>(options =>
 
     );
 
+// RazorPay Interigation
+builder.Services.Configure<RazorpaySettings>(
+    builder.Configuration.GetSection("Razorpay"));
 
 // =====================================================
 // CORS CONFIGURATION
@@ -148,6 +155,7 @@ builder.Services.AddScoped<IAdminServices, AdminServices>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IPaymentsServices, PaymentsServices>();
 // =====================================================
 // CONTROLLERS + SWAGGER
 // =====================================================
@@ -155,7 +163,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
+//http factory
+builder.Services.AddHttpClient();
 var app = builder.Build();
 
 // =====================================================
@@ -181,7 +190,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
+app.UseRouting();
+
 app.UseCors("AllowMVCFrontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
 

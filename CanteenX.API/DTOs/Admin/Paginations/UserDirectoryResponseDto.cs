@@ -1,6 +1,6 @@
 ﻿namespace CanteenX.API.DTOs.Admin.Paginations
 {
-    public sealed class UserDirectoryResponseDto
+    public  class UserDirectoryResponseDto
     {
         // Current page ke users
         public IReadOnlyList<UserDirectoryItemDto> Items { get; set; }

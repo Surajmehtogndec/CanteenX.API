@@ -1,6 +1,6 @@
 ﻿namespace CanteenX.API.DTOs.Admin.Paginations
 {
-    public sealed class UserDirectoryRequestDto
+    public  class UserDirectoryRequestDto
     {
         private const int MaxPageSize = 50;
         public int PageNumber { get; set; } = 1;
