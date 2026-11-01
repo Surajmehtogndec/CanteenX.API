@@ -61,7 +61,6 @@ namespace CanteenX.API.Controllers
 
 
         [HttpPost("register")]
-     
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             var result =

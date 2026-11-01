@@ -2,6 +2,7 @@ using CanteenX.API.Data;
 using CanteenX.API.Helpers;
 using CanteenX.API.Model;
 using CanteenX.API.Services;
+using CanteenX.API.Services.HomeService;
 using CanteenX.API.Services.AdminServices;
 using CanteenX.API.Services.Auth;
 using CanteenX.API.Services.Interfaces;
@@ -151,6 +152,7 @@ builder.Services
 // =====================================================
 // APPLICATION SERVICES
 // =====================================================
+builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<IAdminServices, AdminServices>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();

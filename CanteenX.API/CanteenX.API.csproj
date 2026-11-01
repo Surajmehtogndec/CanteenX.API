@@ -27,11 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\CanteenOwner\" />
+    <Folder Include="DTOs\Payments\" />
     <Folder Include="Migrations\" />
     <Folder Include="Middleware\" />
     <Folder Include="Security\" />
-    <Folder Include="Services\CanteenOwnerService\Interface\" />
     <Folder Include="wwwroot\uploads\canteens\" />
   </ItemGroup>
 
