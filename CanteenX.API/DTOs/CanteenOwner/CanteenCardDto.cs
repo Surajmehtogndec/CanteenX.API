@@ -8,7 +8,7 @@ namespace CanteenX.API.DTOs.CanteenOwner
         // 1. Basic Canteen Details
         public int CanteenId { get; set; }
         public string CanteenName { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;                                  
         public string ImageUrl { get; set; } = string.Empty;
 
         // 2. Flattened Metrics Details (Bina entity object bheje)

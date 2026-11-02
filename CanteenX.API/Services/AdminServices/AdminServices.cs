@@ -157,7 +157,7 @@ namespace CanteenX.API.Services.AdminServices
                 IsActive = dto.IsActive
             };
 
-            _context.Canteens.Add(canteen);
+           await _context.Canteens.AddAsync(canteen);
 
             await _context.SaveChangesAsync();
 

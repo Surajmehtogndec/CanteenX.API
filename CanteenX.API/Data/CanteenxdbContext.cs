@@ -21,9 +21,7 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
 
     public virtual DbSet<Canteen> Canteens { get; set; }
 
-    public virtual DbSet<Menucategory> Menucategories { get; set; }
-
-    public virtual DbSet<Menuitem> Menuitems { get; set; }
+    public virtual DbSet<MenuItems> MenuItems { get; set; }
     
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<CanteenLiveMetric> CanteenLiveMetrics { get; set; }
@@ -79,55 +77,42 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
             .IsUnique();
         });
 
-        modelBuilder.Entity<Menucategory>(entity =>
-        {
-            entity.HasKey(e => e.MenuCategoryId).HasName("PRIMARY");
 
-            entity.ToTable("menucategories");
-
-            entity.Property(e => e.MenuCategoryId).HasColumnType("int(11)");
-            entity.Property(e => e.CategoryName).HasMaxLength(100);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(300);
-            entity.Property(e => e.IsActive).HasDefaultValueSql("'1'");
-        });
-
-        modelBuilder.Entity<Menuitem>(entity =>
+        modelBuilder.Entity<MenuItems>(entity =>
         {
             entity.HasKey(e => e.MenuItemId).HasName("PRIMARY");
 
             entity.ToTable("menuitems");
 
-            entity.HasIndex(e => e.CanteenId, "CanteenId");
-
-            entity.HasIndex(e => e.MenuCategoryId, "MenuCategoryId");
-
             entity.Property(e => e.MenuItemId).HasColumnType("int(11)");
             entity.Property(e => e.CanteenId).HasColumnType("int(11)");
+            entity.Property(e => e.ItemName)
+            .HasMaxLength(150) // varchar(150)[cite: 6]
+            .UseCollation("utf8mb4_general_ci");
+
+            entity.Property(e => e.Price)
+            .HasPrecision(10, 2);
+
+            entity.Property(e => e.ImageUrl)
+            .HasMaxLength(500) // varchar(500) nullable[cite: 6]
+            .UseCollation("utf8mb4_general_ci");
+
+            entity.Property(e => e.IsAvailable)
+            .HasColumnType("tinyint(1)") // Default 0 mapped as false[cite: 6]
+            .HasDefaultValueSql("'1'");
+
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.ImageUrl).HasMaxLength(500);
-            entity.Property(e => e.IsAvailable).HasDefaultValueSql("'1'");
-            entity.Property(e => e.ItemName).HasMaxLength(150);
-            entity.Property(e => e.MenuCategoryId).HasColumnType("int(11)");
-            entity.Property(e => e.PreparationTime).HasColumnType("int(11)");
-            entity.Property(e => e.Price).HasPrecision(10, 2);
+            .HasColumnType("datetime")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
             entity.Property(e => e.UpdatedAt)
-                .ValueGeneratedOnAddOrUpdate()
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
+            .HasColumnType("datetime");
 
-            entity.HasOne(d => d.Canteen).WithMany(p => p.Menuitems)
-                .HasForeignKey(d => d.CanteenId)
-                .HasConstraintName("menuitems_ibfk_1");
-
-            entity.HasOne(d => d.MenuCategory).WithMany(p => p.Menuitems)
-                .HasForeignKey(d => d.MenuCategoryId)
-                .HasConstraintName("menuitems_ibfk_2");
+            entity.HasOne(d => d.Canteen)
+            .WithMany(p => p.Menuitems)
+            .HasForeignKey(d => d.CanteenId)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .HasConstraintName("FK_MenuItems_Canteens");
         });
 
         modelBuilder.Entity<RefreshToken>(entity => {

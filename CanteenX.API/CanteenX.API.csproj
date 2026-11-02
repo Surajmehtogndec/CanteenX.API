@@ -32,6 +32,7 @@
     <Folder Include="Middleware\" />
     <Folder Include="Security\" />
     <Folder Include="wwwroot\uploads\canteens\" />
+    <Folder Include="wwwroot\uploads\items\" />
   </ItemGroup>
 
 </Project>

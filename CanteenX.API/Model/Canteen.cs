@@ -25,5 +25,5 @@ public partial class Canteen
 
     public virtual ApplicationUser? User { get; set; }
 
-    public virtual ICollection<Menuitem> Menuitems { get; set; } = new List<Menuitem>();
+    public virtual ICollection<MenuItems> Menuitems { get; set; } = new List<MenuItems>();
 }
