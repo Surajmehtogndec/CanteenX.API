@@ -5,7 +5,7 @@
         public int MenuItemId { get; set; }
         public int CanteenId { get; set; }
         public string ItemName { get; set; } = null!;
-        public decimal Price { get; set; }
+        public string Price { get; set; } = null!;
         public string? ImageUrl { get; set; }
         public bool IsAvailable { get; set; }
         public DateTime CreatedAt { get; set; }

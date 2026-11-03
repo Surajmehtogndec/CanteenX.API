@@ -13,15 +13,25 @@ namespace CanteenX.API.Services.CanteenOwnerService
         private readonly CanteenxdbContext _context;
         private readonly IWebHostEnvironment _environment;
 
-        private readonly UserManager<ApplicationUser> _userManager;
+        
 
-        public CanteenOwnerService(CanteenxdbContext context, IWebHostEnvironment environment, UserManager<ApplicationUser> userManager)
+        public CanteenOwnerService(CanteenxdbContext context, IWebHostEnvironment environment)
         {
             _context = context;
             _environment = environment;
-            _userManager = userManager;
+          
         }
 
+        public async Task<int> GetCanteenIdByUserIdAsync(string userId)
+        {
+            // UserId ke basis par canteen fetch kar rahe hain
+            var canteen = await _context.Canteens
+                .AsNoTracking() // Performance ke liye kyunki hum sirf read kar rahe hain
+                .FirstOrDefaultAsync(c => c.UserId == userId); // FK column name check kar lena
+
+            // Agar canteen mil gayi toh uski ID bhejein, warna 0
+            return canteen?.CanteenId ?? 0;
+        }
 
         public async Task<bool> AddMenuItemAsync(AddMenuItemDto dto, CancellationToken cancellationToken)
         {
@@ -83,7 +93,7 @@ namespace CanteenX.API.Services.CanteenOwnerService
                 {
                     CanteenId = dto.CanteenId,
                     ItemName = dto.ItemName.Trim(),
-                    Price = dto.Price,
+                    Price = dto.Price.Trim(),
                     ImageUrl = imageUrl,
                     IsAvailable = dto.IsAvailable
                 };

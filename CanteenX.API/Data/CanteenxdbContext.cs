@@ -91,7 +91,7 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
             .UseCollation("utf8mb4_general_ci");
 
             entity.Property(e => e.Price)
-            .HasPrecision(10, 2);
+            .HasMaxLength(500);
 
             entity.Property(e => e.ImageUrl)
             .HasMaxLength(500) // varchar(500) nullable[cite: 6]
