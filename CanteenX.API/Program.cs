@@ -73,7 +73,7 @@ builder.Services
         // Account Lockout
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan =
-            TimeSpan.FromMinutes(15);
+            TimeSpan.FromMinutes(20);
     })
     .AddEntityFrameworkStores<CanteenxdbContext>()
     .AddDefaultTokenProviders();
@@ -82,7 +82,7 @@ builder.Services
 
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 {
-    options.TokenLifespan = TimeSpan.FromMinutes(15);
+    options.TokenLifespan = TimeSpan.FromDays(7);
 });
 
 
