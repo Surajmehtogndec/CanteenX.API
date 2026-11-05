@@ -53,5 +53,26 @@ namespace CanteenX.API.Controllers
             }
         }
 
+        [HttpGet("menu-items")]
+        public async Task<IActionResult> GetMenuItems(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var menuItems = await _homeService.GetMenuItemsAsync(cancellationToken);
+                return Ok(menuItems);
+            }
+            catch (OperationCanceledException)
+            {
+                // User ne request cancel kar di ya timeout ho gaya
+                return StatusCode(499, "Request was cancelled by the user.");
+            }
+            catch (Exception)
+            {
+                // Database ya query fatne par error log karega
+                // _logger.LogError(ex, "Database error occurred while fetching menu items.");
+                return StatusCode(500, "An error occurred while fetching menu items.");
+            }
+        }
+
     }
 }

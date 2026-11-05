@@ -101,6 +101,38 @@ namespace CanteenX.API.Services.HomeService
             }
         }
 
+        public async Task<IEnumerable<MenuItemResponseDto>> GetMenuItemsAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var items = await _context.MenuItems
+                    .AsNoTracking()
+                    .Include(m => m.Canteen)
+                    .OrderByDescending(m => m.MenuItemId)
+                    .Select(m => new MenuItemResponseDto
+                    {
+                        MenuItemId = m.MenuItemId,
+                        ItemName = m.ItemName ?? "Unknown Item",
+                        Price = m.Price,
+                        ImageUrl = m.ImageUrl,
+                        IsAvailable = m.IsAvailable,
+                        CanteenId = m.CanteenId,
+                        CanteenName = m.Canteen != null ? m.Canteen.CanteenName : "Unknown Canteen",
+                    })
+                    .ToListAsync(cancellationToken);
+                return items;
+            }
+            catch (Exception)
+            {
+                // Error ko file/console mein log karein
+                //_logger.LogError(ex, "An error occurred while fetching menu items from the database.");
+                // UI crash hone se bachane ke liye khali list return karein
+                return Enumerable.Empty<MenuItemResponseDto>();
+            }
+        }
+
+
+
     }
-    
+
 }
