@@ -1,10 +1,14 @@
 ﻿using CanteenX.API.Data;
 using CanteenX.API.DTOs.Admin;
+using CanteenX.API.DTOs.CanteenOwner;
 using CanteenX.API.DTOs.Admin.Paginations;
 using CanteenX.API.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CanteenX.API.Services.AdminServices
 {
@@ -512,6 +516,41 @@ namespace CanteenX.API.Services.AdminServices
                 TotalPages = totalPages
             };
         }
+
+
+      public async Task<IdentityResult?> DeleteCanteenDirectoryAsync(int canteenId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var canteen = await _context.Canteens.FindAsync(canteenId);
+                if(canteen is null)
+                {
+                    return null;
+                }
+                if (!string.IsNullOrWhiteSpace(canteen.ImageUrl))
+                {
+                    var imagePath = canteen.ImageUrl.TrimStart('/');
+                    var physicalPath = Path.Combine(_environment.WebRootPath, imagePath);
+
+                    if(System.IO.File.Exists(physicalPath))
+                    {
+                        System.IO.File.Delete(physicalPath);
+                    }
+
+                }
+
+                _context.Canteens.Remove(canteen);
+                await _context.SaveChangesAsync(cancellationToken);
+                 
+               return IdentityResult.Success;
+            }
+            catch (Exception ex)
+            {
+                return IdentityResult.Failed(new IdentityError { Description = $"An error occurred while deleting the canteen: {ex.Message}" });
+            }
+        }
+
+
 
 
     }

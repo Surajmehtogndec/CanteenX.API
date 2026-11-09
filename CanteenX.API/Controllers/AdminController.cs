@@ -14,7 +14,7 @@ namespace CanteenX.API.Controllers
         private readonly IAdminServices _adminServices;
         private readonly IAuthService _authService;
 
-        public AdminController(IAdminServices adminServices,IAuthService authService)
+        public AdminController(IAdminServices adminServices, IAuthService authService)
         {
             _adminServices = adminServices;
             _authService = authService;
@@ -56,8 +56,8 @@ namespace CanteenX.API.Controllers
             {
                 return BadRequest(new
                 {
-                     success = false,
-                     Message = "Invalid Canteen Data.."
+                    success = false,
+                    Message = "Invalid Canteen Data.."
                 });
             }
 
@@ -149,7 +149,7 @@ namespace CanteenX.API.Controllers
 
                 if (request.PageSize < 1 || request.PageSize > 100)
                 {
-                    return BadRequest(new 
+                    return BadRequest(new
                     {
                         success = false,
                         message = "Page size must be between 1 and 100."
@@ -169,7 +169,7 @@ namespace CanteenX.API.Controllers
 
 
             }
-            catch(OperationCanceledException)
+            catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
             {
                 throw;
@@ -183,7 +183,7 @@ namespace CanteenX.API.Controllers
                        success = false,
                        message = ex.Message,
                        innerError = ex.InnerException?.Message
-                       
+
                    });
             }
 
@@ -250,7 +250,7 @@ namespace CanteenX.API.Controllers
 
 
         [HttpGet("canteen-directory")]
-        public async Task<ActionResult<CanteenDirectoryResponseDto>> GetCanteensAsync([FromQuery] CanteenDirectoryRequestDto request,CancellationToken cancellationToken)
+        public async Task<ActionResult<CanteenDirectoryResponseDto>> GetCanteensAsync([FromQuery] CanteenDirectoryRequestDto request, CancellationToken cancellationToken)
         {
             try
             {
@@ -303,5 +303,27 @@ namespace CanteenX.API.Controllers
             }
 
         }
+
+
+        [HttpDelete("deletecanteen/{canteenId}")]
+        public async Task<IActionResult> DeleteCanteenDirectoryAsync(int canteenId, CancellationToken cancellationToken)
+        {
+            var result = await _adminServices.DeleteCanteenDirectoryAsync(canteenId, cancellationToken);
+            if (!result!.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to delete canteen.",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                message = "Canteen deleted successfully."
+            });
+        }
+    
     }
 }

@@ -11,7 +11,8 @@ namespace CanteenX.API.Controllers
         {
             _homeService = homeService;
         }
-        [HttpGet("active-canteens")]
+
+        [HttpGet("active-canteens")]                           
         public async Task<IActionResult> GetAllActiveCanteens(CancellationToken cancellationToken)
         {
             try

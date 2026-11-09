@@ -50,13 +50,13 @@ namespace CanteenX.API.Services.HomeService
                 return canteens;
             }
 
-            catch (OperationCanceledException ex)
-            {
+            catch (OperationCanceledException )
+            { 
                
                
                 return Enumerable.Empty<CanteenCardDto>(); // Empty list return karega
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 // Database ya query fatne par error log karega
               

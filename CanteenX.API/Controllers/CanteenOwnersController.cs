@@ -62,5 +62,32 @@ namespace CanteenX.API.Controllers
                 message = "Menu item added successfully."
             });
         }
+
+
+        [HttpGet("canteen-profile")]
+        public async Task<IActionResult> GetCanteenProfile(CancellationToken cancellationToken)
+        {
+            try
+            {
+
+                // Logged-in user ki ID nikalna
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "User is not logged in." });
+                }
+                var canteenProfile = await _canteenOwnerService.GetCanteenProfileDataAsync(userId, cancellationToken);
+
+                if (canteenProfile == null)
+                {
+                    return NotFound(new { message = "No canteen profile linked to this user." });
+                }
+                return Ok(canteenProfile);
+            }
+            catch(Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Internal server error: " + ex.Message });
+            }
+        }
     }
 }

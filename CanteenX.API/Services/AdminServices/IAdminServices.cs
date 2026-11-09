@@ -1,5 +1,6 @@
 ﻿using CanteenX.API.DTOs.Admin;
 using CanteenX.API.DTOs.Admin.Paginations;
+using CanteenX.API.DTOs.CanteenOwner;
 using Microsoft.AspNetCore.Identity;
 namespace CanteenX.API.Services.AdminServices
 {
@@ -17,6 +18,10 @@ namespace CanteenX.API.Services.AdminServices
         Task<IdentityResult?> DeleteUserDirectoryAsync(string userId, CancellationToken cancellationToken);
 
         Task<CanteenDirectoryResponseDto> GetCanteensDirectoryAsync(CanteenDirectoryRequestDto request, CancellationToken cancellationToken);
+
+        Task<IdentityResult?>DeleteCanteenDirectoryAsync(int canteenId, CancellationToken cancellationToken);
+
+     
 
     }
 }

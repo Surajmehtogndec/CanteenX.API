@@ -107,7 +107,7 @@ namespace CanteenX.API.Services.CanteenOwnerService
                 // Handle cancellation gracefully
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log the exception (you can use a logging framework here)
                 // _logger.LogError(ex, "An error occurred while adding a menu item.");
@@ -115,6 +115,30 @@ namespace CanteenX.API.Services.CanteenOwnerService
             }
         }
 
+        public async Task<CanteenProfileDto?> GetCanteenProfileDataAsync(string userId, CancellationToken cancellationToken)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+            var profile = await (from user in _context.Users.AsNoTracking()
+                                 join canteen in _context.Canteens.AsNoTracking()
+                                 on user.Id equals canteen.UserId
+                                 where user.Id == userId
+                                 select new CanteenProfileDto
+                                 {
+                                     Id = user.Id,
+                                     Email = user.Email ?? string.Empty,
+                                     PhoneNumber = user.PhoneNumber ?? string.Empty,
+
+
+                                     CanteenId = canteen.CanteenId,
+                                     CanteenName = canteen.CanteenName,
+                                     ImageUrl = canteen.ImageUrl ?? string.Empty,
+                                     IsActive = canteen.IsActive ?? false
+
+                                 }).FirstOrDefaultAsync(cancellationToken);
+
+            return profile;
+        }
 
     }
 }
