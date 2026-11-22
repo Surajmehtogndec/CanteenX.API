@@ -125,7 +125,7 @@ namespace CanteenX.API.Services.CanteenOwnerService
                                  where user.Id == userId
                                  select new CanteenProfileDto
                                  {
-                                     Id = user.Id,
+                                     Id = user.Id,                                                                                   
                                      Email = user.Email ?? string.Empty,
                                      PhoneNumber = user.PhoneNumber ?? string.Empty,
 

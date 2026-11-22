@@ -19,13 +19,15 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
-    public virtual DbSet<Canteen> Canteens { get; set; }
-
-    public virtual DbSet<MenuItems> MenuItems { get; set; }
-    
-    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<CanteenLiveMetric> CanteenLiveMetrics { get; set; }
-
+    public virtual DbSet<CanteenOrder> CanteenOrders { get; set; }
+    public virtual DbSet<Canteen> Canteens { get; set; }
+    public virtual DbSet<MenuItems> MenuItems { get; set; }
+    public virtual DbSet<OrderItems> OrderItems { get; set; }
+    public virtual DbSet<Order> Orders { get; set; }
+    public virtual DbSet<Payments> Payments { get; set; }
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+   
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseMySql("name=ConnectionStrings:DefaultConnection", Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.4.32-mariadb"));
@@ -36,6 +38,54 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
         modelBuilder
             .UseCollation("utf8mb4_general_ci")
             .HasCharSet("utf8mb4");
+
+
+        modelBuilder.Entity<CanteenLiveMetric>(entity =>
+        {
+            entity.HasKey(e => e.MetricId).HasName("PRIMARY");
+            entity.ToTable("CanteenLiveMetrics");
+            entity.Property(e => e.MetricId).HasColumnType("int(11)");
+            entity.Property(e => e.CanteenId).HasColumnType("int(11)");
+            entity.Property(e => e.CrowdStatus).HasMaxLength(100);
+            entity.Property(e => e.EstimatedWaitTime).HasMaxLength(50);
+            entity.Property(e => e.Rating).HasPrecision(3, 2);
+            entity.Property(e => e.ReviewCount).HasColumnType("int(11)");
+            // Foreign Key Relationship with Canteen
+            entity.HasOne(d => d.Canteen)
+                .WithMany()
+                .HasForeignKey(d => d.CanteenId)
+                .HasConstraintName("FK_CanteenLiveMetrics_Canteens_CanteenId")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CanteenOrder>(entity =>
+        {
+            entity.HasKey(e => e.CanteenOrderId).HasName("PRIMARY");
+            entity.ToTable("CanteenOrders");
+
+            entity.Property(e => e.CanteenOrderId).HasColumnType("int(11)");
+
+            entity.Property(e => e.OrderId).HasColumnType("int(11)");
+
+            entity.Property(e => e.CanteenId).HasColumnType("int(11)");
+
+            entity.Property(e => e.OrderStatus).HasMaxLength(100);
+            entity.Property(e => e.Subtotal).HasMaxLength(150);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            // Foreign Key Relationship with Canteen
+            entity.HasOne(d => d.Canteen)
+                .WithMany()
+                .HasForeignKey(d => d.CanteenId)
+                .HasConstraintName("FK_CanteenOrders_Canteens_CanteenId")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
 
         modelBuilder.Entity<Canteen>(entity =>
         {
@@ -98,8 +148,8 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
             .UseCollation("utf8mb4_general_ci");
 
             entity.Property(e => e.IsAvailable)
-            .HasColumnType("tinyint(1)") // Default 0 mapped as false[cite: 6]
-            .HasDefaultValueSql("'1'");
+            .HasColumnType("tinyint(1)"); // Default 0 mapped as false[cite: 6]
+            
 
             entity.Property(e => e.CreatedAt)
             .HasColumnType("datetime")
@@ -114,6 +164,166 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
             .OnDelete(DeleteBehavior.ClientSetNull)
             .HasConstraintName("FK_MenuItems_Canteens");
         });
+
+        modelBuilder.Entity<OrderItems>(entity =>
+        {
+            entity.HasKey(e => e.OrderItemId).HasName("PRIMARY");
+            entity.ToTable("orderitems");
+
+            entity.Property(e => e.OrderItemId)
+            .HasColumnType("int(11)")
+            .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.CanteenOrderId)
+             .HasColumnType("int(11)");
+
+            entity.Property(e => e.ItemName)
+               .IsRequired()
+               .HasMaxLength(150);
+
+
+            entity.Property(e => e.UnitPrice)
+              .HasMaxLength(500)
+              .IsRequired(false);
+
+            entity.Property(e => e.Quantity)
+              .HasColumnType("int(11)");
+
+            entity.Property(e => e.SubTotal)
+              .HasMaxLength(500)
+              .IsRequired(false);
+
+            // CanteenOrder Relationship
+            entity.HasOne(e => e.CanteenOrder)
+                .WithMany(e => e.OrderItems)
+                .HasForeignKey(e => e.CanteenOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // MenuItem Relationship
+            entity.HasOne(e => e.MenuItem)
+                .WithMany()
+                .HasForeignKey(e => e.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+        });
+
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(e => e.OrderId)
+               .HasName("PRIMARY");
+
+            entity.ToTable("orders");
+
+
+            entity.Property(e => e.OrderId)
+              .HasColumnType("int(11)");
+            entity.Property(e => e.UserId)
+             .IsRequired()
+             .HasMaxLength(255);
+
+            entity.Property(e => e.TotalAmount)
+             .IsRequired()
+             .HasMaxLength(150);
+            entity.Property(e => e.OrderStatus)
+             .HasMaxLength(30)
+             .HasDefaultValue("Pending");
+            entity.Property(e => e.PaymentStatus)
+             .HasMaxLength(30)
+             .HasDefaultValue("Pending");
+
+            entity.Property(e => e.CreatedAt)
+              .HasColumnType("datetime")
+              .HasDefaultValueSql("current_timestamp()");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("datetime");
+
+
+            // Order -> ApplicationUser
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("FK_Orders_AspNetUsers_UserId")
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            // Order -> CanteenOrders
+            entity.HasMany(e => e.CanteenOrders)
+                .WithOne(e => e.Order)
+                .HasForeignKey(e => e.OrderId)
+                .HasConstraintName("FK_CanteenOrders_Orders_OrderId")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+
+        modelBuilder.Entity<Payments>(entity =>
+        {
+            entity.ToTable("payments");
+
+            entity.HasKey(e => e.PaymentId)
+             .HasName("PRIMARY");
+
+            // Indexes
+            entity.HasIndex(e => e.OrderId, "IX_Payments_OrderId");
+            entity.HasIndex(e => e.RazorPayOrderId, "IX_Payments_RazorpayOrderId");
+            entity.HasIndex(e => e.RazorpayPaymentId, "IX_Payments_RazorpayPaymentId");
+            entity.HasIndex(e => e.PaymentStatus, "IX_Payments_PaymentStatus");
+
+
+            entity.Property(e => e.PaymentId)
+             .HasColumnType("int(11)")
+             .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.OrderId)
+             .HasColumnType("int(11)");
+
+
+            entity.Property(e => e.Provider)
+             .IsRequired()
+             .HasMaxLength(30)
+             .HasDefaultValueSql("'Razorpay'");
+
+            entity.Property(e => e.RazorPayOrderId)
+            .HasMaxLength(100);
+
+            entity.Property(e => e.RazorpayPaymentId)
+             .HasMaxLength(100);
+
+            entity.Property(e => e.Amount)
+              .HasColumnType("int(11)");
+
+            entity.Property(e => e.Currency)
+              .IsRequired()
+              .HasMaxLength(10)
+              .HasDefaultValueSql("'INR'");
+
+            entity.Property(e => e.PaymentStatus)
+             .IsRequired()
+             .HasMaxLength(30)
+             .HasDefaultValueSql("'Created'");
+
+            entity.Property(e => e.PaymentMethod)
+              .HasMaxLength(50);
+
+            entity.Property(e => e.CreatedAt)
+             .HasColumnType("datetime")
+             .HasDefaultValueSql("current_timestamp()");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Order)
+            .WithMany(p => p.Payments)
+            .HasForeignKey(d => d.OrderId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("FK_Payments_Orders_OrderId");
+
+        });
+
+
+
 
         modelBuilder.Entity<RefreshToken>(entity => {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -179,25 +389,10 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
 
         });
 
-     modelBuilder.Entity<CanteenLiveMetric>(entity =>
-        {
-            entity.HasKey(e => e.MetricId).HasName("PRIMARY");
-            entity.ToTable("CanteenLiveMetrics");
-            entity.Property(e => e.MetricId).HasColumnType("int(11)");
-            entity.Property(e => e.CanteenId).HasColumnType("int(11)");
-            entity.Property(e => e.CrowdStatus).HasMaxLength(100);
-            entity.Property(e => e.EstimatedWaitTime).HasMaxLength(50);
-            entity.Property(e => e.Rating).HasPrecision(3, 2);
-            entity.Property(e => e.ReviewCount).HasColumnType("int(11)");
-            // Foreign Key Relationship with Canteen
-            entity.HasOne(d => d.Canteen)
-                .WithMany()
-                .HasForeignKey(d => d.CanteenId)
-                .HasConstraintName("FK_CanteenLiveMetrics_Canteens_CanteenId")
-                .OnDelete(DeleteBehavior.Cascade);
-        });
 
-      
+
+
+
 
         OnModelCreatingPartial(modelBuilder);
     }
