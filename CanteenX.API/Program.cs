@@ -2,6 +2,7 @@ using CanteenX.API.Data;
 using CanteenX.API.Helpers;
 using CanteenX.API.Model;
 using CanteenX.API.Services;
+using CanteenX.API.Services.Order;
 using CanteenX.API.Services.CanteenOwnerService;
 using CanteenX.API.Services.CanteenOwnerService.Interface;
 using CanteenX.API.Services.HomeService;
@@ -34,9 +35,15 @@ builder.Services.AddDbContext<CanteenxdbContext>(options =>
 
     );
 
+
+
 // RazorPay Interigation
-builder.Services.Configure<RazorpaySettings>(
-    builder.Configuration.GetSection("Razorpay"));
+builder.Services.AddOptions<RazorpaySettings>()
+    .Bind(builder.Configuration.GetSection("Razorpay"))
+    .Validate(x => !string.IsNullOrWhiteSpace(x.KeyId), "Razorpay KeyId is missing.")
+     .Validate(x => !string.IsNullOrWhiteSpace(x.KeySecret),
+        "Razorpay KeySecret is missing.")
+    .ValidateOnStart();
 
 // =====================================================
 // CORS CONFIGURATION
@@ -161,6 +168,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPaymentsServices, PaymentsServices>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 // =====================================================
 // CONTROLLERS + SWAGGER
 // =====================================================
