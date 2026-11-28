@@ -5,7 +5,7 @@
      public int CanteenOrderId { get; set; }
      public int OrderId { get; set; }
      public int CanteenId { get; set; }
-     public string OrderStatus { get; set; } = null!;
+     public string OrderStatus { get; set; } = "Pending";
      public string Subtotal { get; set; } = null!;
      public DateTime CreatedAt { get; set; }
      public DateTime? UpdatedAt { get; set; }

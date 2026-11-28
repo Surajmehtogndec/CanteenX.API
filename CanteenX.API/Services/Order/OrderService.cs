@@ -4,6 +4,7 @@ using CanteenX.API.Model;
 using CanteenX.API.Services.Order;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CanteenX.API.Services
 {
@@ -19,10 +20,7 @@ namespace CanteenX.API.Services
         // ==========================================
         // 1. CREATE ORDER
         // ==========================================
-        public async Task<OrderResponseDto> CreateOrderAsync(
-            string userId,
-            CheckoutRequestDto request,
-            CancellationToken cancellationToken = default)
+        public async Task<OrderResponseDto> CreateOrderAsync(string userId,CheckoutRequestDto request, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("Invalid user.");
@@ -187,10 +185,7 @@ namespace CanteenX.API.Services
         // ==========================================
         // 2. GET ORDER BY ID
         // ==========================================
-        public async Task<OrderDetailsResponseDto?> GetOrderByIdAsync(
-            int orderId,
-            string userId,
-            CancellationToken cancellationToken = default)
+        public async Task<OrderDetailsResponseDto?> GetOrderByIdAsync(int orderId,string userId,CancellationToken cancellationToken = default)
         {
             var order = await _context.Orders
                 .AsNoTracking()
@@ -239,34 +234,50 @@ namespace CanteenX.API.Services
         // ==========================================
         // 3. GET MY ORDERS
         // ==========================================
-        public async Task<List<OrderResponseDto>> GetMyOrdersAsync(
-            string userId,
-            CancellationToken cancellationToken = default)
+        public async Task<List<OrderDetailsResponseDto>> GetMyOrdersAsync(string userId,CancellationToken cancellationToken = default)
         {
-            var orders = await _context.Orders
-                .AsNoTracking()
-                .Where(x => x.UserId == userId)
-                .OrderByDescending(x => x.CreatedAt)
-                .ToListAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("Invalid Users..");
 
-            return orders.Select(order => new OrderResponseDto
+      
+            return await _context.Orders
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(order => new OrderDetailsResponseDto
             {
-                OrderId = order.OrderId,
-                TotalAmount =order.TotalAmount,
-                OrderStatus = order.OrderStatus,
-                PaymentStatus = order.PaymentStatus,
-                CreatedAt = order.CreatedAt,
-                Message = "Order details retrieved successfully."
-            }).ToList();
+
+            OrderId = order.OrderId,
+            TotalAmount = order.TotalAmount,
+            OrderStatus = order.OrderStatus,
+            PaymentStatus = order.PaymentStatus,
+            CreatedAt = order.CreatedAt,
+            CanteenOrders = order.CanteenOrders.Select(co => new CanteenOrderResponseDto
+            {
+
+                CanteenOrderId = co.CanteenOrderId,
+                CanteenId = co.CanteenId,
+                CanteenName = co.Canteen != null ? co.Canteen.CanteenName : "Canteen",
+                SubTotal = co.Subtotal,
+                OrderStatus = co.OrderStatus,
+                Items = co.OrderItems.Select(oi => new OrderItemResponseDto
+                {
+                    OrderItemId = oi.OrderItemId,
+                    MenuItemId = oi.MenuItemId,
+                    ItemName = oi.ItemName,
+                    UnitPrice = oi.UnitPrice ?? "0.00",
+                    Quantity = oi.Quantity,
+                    SubTotal = oi.SubTotal
+                }).ToList()
+            }).ToList()
+        })
+        .ToListAsync(cancellationToken);
         }
 
         // ==========================================
         // 4. CANCEL ORDER
         // ==========================================
-        public async Task<bool> CancelOrderAsync(
-            int orderId,
-            string userId,
-            CancellationToken cancellationToken = default)
+        public async Task<bool> CancelOrderAsync(int orderId,string userId,CancellationToken cancellationToken = default)
         {
             var order = await _context.Orders
                 .Include(x => x.CanteenOrders)

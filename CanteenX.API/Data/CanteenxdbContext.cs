@@ -292,7 +292,7 @@ public partial class CanteenxdbContext : IdentityDbContext<ApplicationUser>
              .HasMaxLength(100);
 
             entity.Property(e => e.Amount)
-              .HasColumnType("int(11)");
+              .HasColumnType("decimal(10,2)");
 
             entity.Property(e => e.Currency)
               .IsRequired()

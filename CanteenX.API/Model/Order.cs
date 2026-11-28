@@ -7,8 +7,8 @@ namespace CanteenX.API.Model
      public int OrderId { get; set; }
      public string UserId { get; set; } = null!;
      public string TotalAmount { get; set; } = null!;
-     public string OrderStatus { get; set; } = null!;
-     public string PaymentStatus { get; set; } = null!;
+     public string OrderStatus { get; set; } = "Pending";
+     public string PaymentStatus { get; set; } = "Pending";
      public DateTime CreatedAt { get; set; }
      public DateTime? UpdatedAt { get; set; }
 

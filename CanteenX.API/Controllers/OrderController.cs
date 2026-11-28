@@ -95,9 +95,7 @@ namespace CanteenX.API.Controllers
         // GET: api/order/5
         // ==========================================
         [HttpGet("{orderId:int}")]
-        public async Task<IActionResult> GetOrderById(
-            int orderId,
-            CancellationToken cancellationToken)
+        public async Task<IActionResult> GetOrderById(int orderId,CancellationToken cancellationToken)
         {
             if (orderId <= 0)
                 return BadRequest(new
@@ -130,9 +128,10 @@ namespace CanteenX.API.Controllers
                 data = result
             });
         }
+        
+
         [HttpGet("my-orders")]
-        public async Task<IActionResult> GetMyOrders(
-                   CancellationToken cancellationToken)
+        public async Task<IActionResult> GetMyOrders(CancellationToken cancellationToken)
         {
             string? userId = User.FindFirstValue(
                 ClaimTypes.NameIdentifier);

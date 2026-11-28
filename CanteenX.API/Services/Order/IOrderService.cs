@@ -10,7 +10,7 @@ namespace CanteenX.API.Services.Order
         Task<OrderDetailsResponseDto?> GetOrderByIdAsync(int orderId,string userId,CancellationToken cancellationToken = default);
 
         // Get all orders of logged-in student
-        Task<List<OrderResponseDto>> GetMyOrdersAsync(string userId,CancellationToken cancellationToken = default);
+        Task<List<OrderDetailsResponseDto>> GetMyOrdersAsync(string userId,CancellationToken cancellationToken = default);
 
         // Cancel an eligible order
         Task<bool> CancelOrderAsync(int orderId,string userId,CancellationToken cancellationToken = default);

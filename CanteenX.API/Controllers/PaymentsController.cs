@@ -156,14 +156,11 @@ namespace CanteenX.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error verifying Razorpay payment.");
-
+                _logger.LogError(ex, "Error verifying Razorpay payment for OrderId {OrderId}", request.OrderId);
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Payment verification failed."
+                    message = ex.InnerException?.Message ?? ex.Message // Sirf debugging ke liye
                 });
             }
         }

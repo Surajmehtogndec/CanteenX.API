@@ -105,11 +105,11 @@ namespace CanteenX.API.Services.PaymentsServices
                 OrderId = order.OrderId,
                 Provider = "Razorpay",
                 RazorPayOrderId = razorpayOrderId,
-                RazorpayPaymentId = string.Empty,
-                Amount = amountInPaise,
+                RazorpayPaymentId = null,
+                Amount = amountInRupees,
                 Currency = _razorpaySettings.Currency,
                 PaymentStatus = "Created",
-                PaymentMethod = "NotSelected",
+                PaymentMethod = null!,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -140,11 +140,12 @@ namespace CanteenX.API.Services.PaymentsServices
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("Invalid user.");
 
-            if (string.IsNullOrWhiteSpace(request.RazorpayPaymentId) ||
-             string.IsNullOrWhiteSpace(request.RazorpaySignature))
+            if (request.OrderId <= 0 ||
+                    string.IsNullOrWhiteSpace(request.RazorPayOrderId) ||
+                    string.IsNullOrWhiteSpace(request.RazorpayPaymentId) ||
+                    string.IsNullOrWhiteSpace(request.RazorpaySignature))
             {
-                throw new ArgumentException(
-                    "Payment verification details are required.");
+                throw new ArgumentException("Payment verification details are required.");
             }
 
 
@@ -152,6 +153,7 @@ namespace CanteenX.API.Services.PaymentsServices
             // Find payment using server-side saved Razorpay order ID
             var payment = await _context.Payments
                 .Include(x => x.Order)
+                .ThenInclude(o => o.CanteenOrders)
                 .FirstOrDefaultAsync(
                     x => x.OrderId == request.OrderId &&
                          x.RazorPayOrderId == request.RazorPayOrderId &&
@@ -175,6 +177,7 @@ namespace CanteenX.API.Services.PaymentsServices
                 throw new InvalidOperationException(
                     "This order has already been paid.");
             }
+
             // Generate expected HMAC SHA256 signature
             string payload =
                 payment.RazorPayOrderId + "|" +
@@ -216,42 +219,46 @@ namespace CanteenX.API.Services.PaymentsServices
                 request.RazorpayPaymentId);
 
             string razorpayOrderId =
-                razorpayPayment["order_id"].ToString()!;
+                razorpayPayment.Attributes.ContainsKey("order_id")
+                ? razorpayPayment["order_id"]?.ToString() ?? string.Empty
+                : string.Empty;
 
-            string razorpayStatus =
-                razorpayPayment["status"].ToString()!;
+            string razorpayStatus = razorpayPayment.Attributes.ContainsKey("status")
+                ? razorpayPayment["status"]?.ToString() ?? string.Empty
+                : string.Empty;
 
-            int razorpayAmount = Convert.ToInt32(
-                razorpayPayment["amount"],
-                CultureInfo.InvariantCulture);
+            string rawAmount = razorpayPayment.Attributes.ContainsKey("amount")
+                ? razorpayPayment["amount"]?.ToString() ?? "0"
+                : "0";
 
-            string razorpayCurrency =
-                razorpayPayment["currency"].ToString()!;
+            if (!int.TryParse(rawAmount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int razorpayAmount))
+                throw new InvalidOperationException("Invalid payment amount received from Razorpay.");
+
+            string razorpayCurrency = razorpayPayment.Attributes.ContainsKey("currency")
+                ? razorpayPayment["currency"]?.ToString() ?? string.Empty
+                : string.Empty;
+
+            string paymentMethod = razorpayPayment.Attributes.ContainsKey("method")
+                ? razorpayPayment["method"]?.ToString() ?? "Unknown"
+                : "Unknown";
 
             // Verify payment belongs to the saved Razorpay order
             if (razorpayOrderId != payment.RazorPayOrderId)
                 throw new InvalidOperationException(
                     "Payment does not belong to this Razorpay order.");
 
+            int expectedPaise = decimal.ToInt32(payment.Amount * 100);
+
             // Verify amount and currency
-            if (razorpayAmount != payment.Amount ||
-                razorpayCurrency != payment.Currency)
+            if (razorpayAmount != expectedPaise || razorpayCurrency != payment.Currency)
             {
-                throw new InvalidOperationException(
-                    "Payment amount or currency mismatch.");
+                throw new InvalidOperationException("Payment amount or currency mismatch.");
             }
 
-
             // Update payment record
-            payment.RazorpayPaymentId =
-                request.RazorpayPaymentId;
-
-            payment.PaymentMethod =
-                razorpayPayment["method"]?.ToString()
-                ?? "Unknown";
-
+            payment.RazorpayPaymentId = request.RazorpayPaymentId;
+            payment.PaymentMethod = paymentMethod;
             payment.PaymentStatus = razorpayStatus;
-
             payment.UpdatedAt = DateTime.UtcNow;
 
             // Mark order paid only when Razorpay confirms capture
@@ -262,12 +269,20 @@ namespace CanteenX.API.Services.PaymentsServices
                 payment.Order.PaymentStatus = "Paid";
                 payment.Order.OrderStatus = "Confirmed";
                 payment.Order.UpdatedAt = DateTime.UtcNow;
+
+                foreach (var canteenOrder in payment.Order.CanteenOrders)
+                {
+                    canteenOrder.OrderStatus = "Confirmed";
+                    canteenOrder.UpdatedAt = DateTime.UtcNow;
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+                return MapPaymentResponse(payment);
             }
-
-
             await _context.SaveChangesAsync(cancellationToken);
+            throw new InvalidOperationException(
+                $"Payment not captured. Current status: {razorpayStatus}");
 
-            return MapPaymentResponse(payment);
+
 
         }
 
@@ -308,8 +323,8 @@ namespace CanteenX.API.Services.PaymentsServices
             {
                 PaymentId = payment.PaymentId,
                 OrderId = payment.OrderId,
-                RazorPayOrderId = payment.RazorPayOrderId,
-                Amount = payment.Amount,
+                RazorPayOrderId = payment.RazorPayOrderId ?? string.Empty,
+                Amount = decimal.ToInt32(payment.Amount * 100),
                 Currency = payment.Currency,
                 PaymentStatus = payment.PaymentStatus,
                 RazorpayKeyId = _razorpaySettings.KeyId
